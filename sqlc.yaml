@@ -1,0 +1,16 @@
+version: "2"
+sql:
+  - engine: "postgresql"  
+    schema: "sql/schema.sql"
+    queries: "sql/query.sql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/db"
+        sql_package: "pgx/v5"
+        # Surcharge des types pour éliminer le boilerplate pgtype
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "numeric"
+            go_type: "float64" # Note: Utilisez un type custom Decimal en production réelle
