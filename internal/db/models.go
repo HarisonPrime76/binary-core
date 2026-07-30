@@ -33,8 +33,9 @@ type Transaction struct {
 }
 
 type User struct {
-	ID        uuid.UUID
-	Email     string
-	KycStatus string
-	CreatedAt pgtype.Timestamptz
+	ID           uuid.UUID
+	Email        string
+	PasswordHash string
+	KycStatus    string
+	CreatedAt    pgtype.Timestamptz
 }

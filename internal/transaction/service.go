@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"binary-core/internal/db"
 
@@ -22,11 +23,12 @@ func NewService(pool *pgxpool.Pool) *Service {
 }
 
 type TransferParams struct {
-	IdempotencyKey string
-	SourceAccount  uuid.UUID
-	DestAccount    uuid.UUID
-	Amount         float64
-	Description    string
+	AuthenticatedUserID uuid.UUID
+	IdempotencyKey      string
+	SourceAccount       uuid.UUID
+	DestAccount         uuid.UUID
+	Amount              float64
+	Description         string
 }
 
 func (s *Service) ExecuteTransfer(ctx context.Context, p TransferParams) (uuid.UUID, error) {
@@ -53,6 +55,7 @@ func (s *Service) ExecuteTransfer(ctx context.Context, p TransferParams) (uuid.U
 	defer tx.Rollback(ctx)
 
 	qtx := db.New(tx)
+
 	// 1. Idempotence
 	txRecord, err := qtx.CreateTransaction(ctx, db.CreateTransactionParams{
 		IdempotencyKey: p.IdempotencyKey,
@@ -71,8 +74,22 @@ func (s *Service) ExecuteTransfer(ctx context.Context, p TransferParams) (uuid.U
 	if _, err = qtx.GetAccountForUpdate(ctx, first); err == nil {
 		_, _ = qtx.GetAccountForUpdate(ctx, second)
 	}
+	// On récupère le compte source pour vérifier à qui il appartient
+	sourceAccountRecord, err := qtx.GetAccountForUpdate(ctx, p.SourceAccount)
+	if err != nil {
+		slog.Error("Impossible d'accéder au compte source ou compte inexistant", "error", err)
+		return uuid.Nil, errors.New("compte source invalide ou introuvable")
+	}
 
-	// 3. Validation du solde basé sur le Grand Livre
+	// On vérifie si l'UUID de l'utilisateur authentifié correspond à l'UUID propriétaire du compte
+	if sourceAccountRecord.UserID != p.AuthenticatedUserID {
+		slog.Warn("Tentative de débit non autorisée sur un compte tiers",
+			slog.String("hacker_user_id", p.AuthenticatedUserID.String()),
+			slog.String("owner_user_id", sourceAccountRecord.UserID.String()),
+		)
+		return uuid.Nil, errors.New("autorisation refusée : vous n'êtes pas propriétaire de ce compte source")
+	}
+	// Validation du solde basé sur le Grand Livre
 	balanceNumeric, err := qtx.GetBalance(ctx, p.SourceAccount)
 	var currentBalance float64
 	_ = balanceNumeric.Scan(&currentBalance)
@@ -83,15 +100,14 @@ func (s *Service) ExecuteTransfer(ctx context.Context, p TransferParams) (uuid.U
 		return uuid.Nil, errors.New("solde insuffisant")
 	}
 
-	// 4. Écritures comptables en partie double (Double-entry)
+	//Écritures comptables en partie double (Double-entry)
 	if err = qtx.CreatePosting(ctx, db.CreatePostingParams{TransactionID: txRecord.ID, AccountID: p.SourceAccount, Amount: negAmountNum}); err != nil {
 		return uuid.Nil, err
 	}
 	if err = qtx.CreatePosting(ctx, db.CreatePostingParams{TransactionID: txRecord.ID, AccountID: p.DestAccount, Amount: amountNum}); err != nil {
 		return uuid.Nil, err
 	}
-
-	// 5. Clôture atomique de la transaction
+	// Clôture atomique de la transaction
 	_ = qtx.UpdateTransactionStatus(ctx, db.UpdateTransactionStatusParams{ID: txRecord.ID, Status: "completed"})
 
 	return txRecord.ID, tx.Commit(ctx)
