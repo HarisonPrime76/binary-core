@@ -8,9 +8,8 @@ package postgres
 import (
 	"context"
 
-	"github.com/shopspring/decimal"
-
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 const createLedgerEntry = `-- name: CreateLedgerEntry :one

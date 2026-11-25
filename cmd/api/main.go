@@ -63,26 +63,29 @@ func run(logger *slog.Logger) error {
 	}
 	logger.Info("connexion PostgreSQL établie avec succès")
 
-	// 4. Assemblage des dépendances (Injection manuelle : Repository -> Service -> Handler)
+	// Assemblage des dépendances (Repository -> Service -> Handler)
 	queries := postgres.New(dbPool)
 	txManager := postgres.NewTxManager(dbPool)
 
 	authSvc := service.NewAuthService(txManager, queries, cfg.JWTSecret)
 	accountSvc := service.NewAccountService(txManager, queries)
 	auditSvc := service.NewAuditService(txManager, queries)
-	transferSvc := service.NewTransferService(txManager, queries, cfg.ApprovalThreshold)
+	complianceSvc := service.NewComplianceService(txManager, queries, cfg.ApprovalThreshold)
+	transferSvc := service.NewTransferService(txManager, queries, cfg.ApprovalThreshold, complianceSvc)
 
 	authHandler := handler.NewAuthHandler(authSvc)
 	accountHandler := handler.NewAccountHandler(accountSvc)
+	complianceHandler := handler.NewComplianceHandler(complianceSvc)
 	transferHandler := handler.NewTransferHandler(transferSvc)
 
 	router := deliveryhttp.NewRouter(deliveryhttp.RouterConfig{
-		JWTSecret:       cfg.JWTSecret,
-		Logger:          logger,
-		AuditService:    auditSvc,
-		AuthHandler:     authHandler,
-		AccountHandler:  accountHandler,
-		TransferHandler: transferHandler,
+		JWTSecret:         cfg.JWTSecret,
+		Logger:            logger,
+		AuditService:      auditSvc,
+		AuthHandler:       authHandler,
+		AccountHandler:    accountHandler,
+		TransferHandler:   transferHandler,
+		ComplianceHandler: complianceHandler,
 	})
 
 	// 5. Configuration du serveur HTTP avec timeouts stricts contre les attaques Slowloris

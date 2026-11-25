@@ -59,3 +59,13 @@ type AccountService interface {
 	UnfreezeAccount(ctx context.Context, accountID uuid.UUID) (*Account, error)
 	CloseAccount(ctx context.Context, accountID uuid.UUID) (*Account, error)
 }
+
+type ComplianceService interface {
+	SubmitKYCDocument(ctx context.Context, userID uuid.UUID, docType, filePath string) (*KYCDocument, error)
+	ReviewKYCDocument(ctx context.Context, docID, reviewerID uuid.UUID, approved bool, rejectionReason string) (*KYCDocument, error)
+	ListPendingKYC(ctx context.Context) ([]*KYCDocument, error)
+
+	EvaluateTransactionAML(ctx context.Context, tx *Transaction) ([]*AMLAlert, error)
+	ListOpenAMLAlerts(ctx context.Context) ([]*AMLAlert, error)
+	ResolveAMLAlert(ctx context.Context, alertID, reviewerID uuid.UUID, decision AMLAlertStatus) (*AMLAlert, error)
+}

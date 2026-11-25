@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"github.com/google/uuid"
+
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/shopspring/decimal"
 )
@@ -22,6 +23,20 @@ type Account struct {
 	Status           string             `json:"status"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AmlAlert struct {
+	ID            uuid.UUID          `json:"id"`
+	UserID        uuid.UUID          `json:"user_id"`
+	AccountID     uuid.UUID          `json:"account_id"`
+	TransactionID *uuid.UUID         `json:"transaction_id"`
+	RuleTriggered string             `json:"rule_triggered"`
+	Severity      string             `json:"severity"`
+	Details       []byte             `json:"details"`
+	Status        string             `json:"status"`
+	ReviewedBy    *uuid.UUID         `json:"reviewed_by"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
 type AuditLog struct {

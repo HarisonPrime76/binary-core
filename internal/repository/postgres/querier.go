@@ -11,16 +11,21 @@ import (
 )
 
 type Querier interface {
+	CreateAMLAlert(ctx context.Context, arg CreateAMLAlertParams) (AmlAlert, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (AuditLog, error)
+	CreateKYCDocument(ctx context.Context, arg CreateKYCDocumentParams) (KycDocument, error)
 	CreateLedgerEntry(ctx context.Context, arg CreateLedgerEntryParams) (LedgerEntry, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	GetAMLAlertForUpdate(ctx context.Context, id uuid.UUID) (AmlAlert, error)
 	GetAccountByIBAN(ctx context.Context, iban string) (Account, error)
 	GetAccountByID(ctx context.Context, id uuid.UUID) (Account, error)
 	GetAccountForUpdate(ctx context.Context, id uuid.UUID) (Account, error)
+	GetKYCDocumentForUpdate(ctx context.Context, id uuid.UUID) (KycDocument, error)
 	GetLastAuditLogForUpdate(ctx context.Context) (AuditLog, error)
+	GetRecentOutgoingActivity(ctx context.Context, arg GetRecentOutgoingActivityParams) (GetRecentOutgoingActivityRow, error)
 	GetSessionByTokenHashForUpdate(ctx context.Context, refreshTokenHash string) (Session, error)
 	GetTransactionByIdempotencyKey(ctx context.Context, idempotencyKey uuid.UUID) (Transaction, error)
 	GetTransactionForUpdate(ctx context.Context, id uuid.UUID) (Transaction, error)
@@ -28,10 +33,14 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	ListAccountsByUserID(ctx context.Context, userID uuid.UUID) ([]Account, error)
 	ListAuditLogsChronological(ctx context.Context) ([]AuditLog, error)
+	ListOpenAMLAlerts(ctx context.Context) ([]AmlAlert, error)
+	ListPendingKYCDocuments(ctx context.Context) ([]KycDocument, error)
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	RevokeSession(ctx context.Context, id uuid.UUID) error
+	UpdateAMLAlertStatus(ctx context.Context, arg UpdateAMLAlertStatusParams) (AmlAlert, error)
 	UpdateAccountBalances(ctx context.Context, arg UpdateAccountBalancesParams) (Account, error)
 	UpdateAccountStatus(ctx context.Context, arg UpdateAccountStatusParams) (Account, error)
+	UpdateKYCDocumentStatus(ctx context.Context, arg UpdateKYCDocumentStatusParams) (KycDocument, error)
 	UpdateTransactionStatus(ctx context.Context, arg UpdateTransactionStatusParams) (Transaction, error)
 }
 

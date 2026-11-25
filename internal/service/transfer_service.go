@@ -19,17 +19,20 @@ type transferService struct {
 	txManager         postgres.TxManager
 	queries           postgres.Querier
 	approvalThreshold decimal.Decimal
+	complianceSvc     domain.ComplianceService
 }
 
 func NewTransferService(
 	txManager postgres.TxManager,
 	queries postgres.Querier,
 	approvalThreshold decimal.Decimal,
+	complianceSvc domain.ComplianceService,
 ) domain.TransferService {
 	return &transferService{
 		txManager:         txManager,
 		queries:           queries,
 		approvalThreshold: approvalThreshold,
+		complianceSvc:     complianceSvc,
 	}
 }
 
@@ -56,6 +59,7 @@ func (s *transferService) ExecuteInternalTransfer(ctx context.Context, req domai
 	err = s.txManager.ExecTx(ctx, func(q postgres.Querier) error {
 		// Verrouillage ordonné des comptes pour éviter tout deadlock
 		srcAcc, dstAcc, err := lockAccountsOrdered(ctx, q, req.SourceAccountID, req.DestinationAccountID)
+
 		if err != nil {
 			return err
 		}
@@ -127,6 +131,10 @@ func (s *transferService) ExecuteInternalTransfer(ctx context.Context, req domai
 		return nil, err
 	}
 
+	if s.complianceSvc != nil && resultTx != nil {
+		_, _ = s.complianceSvc.EvaluateTransactionAML(ctx, resultTx)
+	}
+
 	return resultTx, nil
 }
 
@@ -193,10 +201,13 @@ func (s *transferService) ApproveTransfer(ctx context.Context, txID uuid.UUID, a
 		return nil
 	})
 
+	if s.complianceSvc != nil {
+		_, _ = s.complianceSvc.EvaluateTransactionAML(ctx, resultTx)
+	}
+
 	if err != nil {
 		return nil, err
 	}
-
 	return resultTx, nil
 }
 
